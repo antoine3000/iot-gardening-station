@@ -2,6 +2,9 @@
 
 A smart device connected to a plant, which measures the soil moisture level, the ambient temperature and humidity and based on the data collected it waters the plant to meet its needs. The data is published online and a web interface allows direct interaction with the gardening station.
 
+![](medias/IMG_9961.jpg)
+![](medias/IMG_9969.jpg)
+
 ## Hardware
 
 ### Components
@@ -12,6 +15,8 @@ A smart device connected to a plant, which measures the soil moisture level, the
 - AHT20 Temperature and Humidity Sensor
 - 3D-printed enclosure
 
+![](medias/IMG_9924.jpg)
+
 ### Assembly instructions
 
 1. Break the XIAO ESP32 at the divider to reduce its size
@@ -19,9 +24,192 @@ A smart device connected to a plant, which measures the soil moisture level, the
 3. Connect the antenna to the XIAO ESP32 and stick it on the side of the water unit
 4. Connect the sensor to the board with a Grove cable to pin 4 and 5
 4. Connect the water unit to the board with a Grove cable to pin 1 and 2
-5. 3D print the case and place it on the unit to cover everything
+5. Tape the sensor to the base of the watering unit using double-sided tape
+6. 3D print the case and place it on the unit to cover everything
+
+![](medias/IMG_9941.jpg)
+![](medias/IMG_9946.jpg)
+![](medias/IMG_9949.jpg)
 
 ## Software
+
+### Arduino
+
+Arduino allows us to program our board so that it acts as desired. Create a new arduino project and paste the following code into it. It will most likely be necessary to install the few libraries used.
+
+```C++
+#include <WiFi.h>
+#include <PubSubClient.h>
+#include <Wire.h>
+#include <AHT20.h>
+
+#define DEVICE 1
+
+const char* ssid = "*****";
+const char* password = "*****";
+const char* mqtt_server = "*****";
+
+WiFiClient espClient;
+PubSubClient client(espClient);
+long lastMsg = 0;
+char msg[50];
+int value = 0;
+
+AHT20 AHT;
+#define PIN_SOIL D1
+#define PIN_PUMP D2
+
+int rawADC;
+int moistureThreshold = 50;
+long moistureAvr = 0;
+long moistureReadingCounter = 0;
+long lastNotification = 0;
+
+// node-red commands
+String nodeOutputSting = "esp32-" + String(DEVICE) + "/output";
+const char* nodeOutput = nodeOutputSting.c_str();
+String nodeTemperatureString = "esp32-" + String(DEVICE) + "/temperature";
+const char* nodeTemperature = nodeTemperatureString.c_str();
+String nodeHumidityString = "esp32-" + String(DEVICE) + "/humidity";
+const char* nodeHumidity = nodeHumidityString.c_str();
+String nodeMoistureString = "esp32-" + String(DEVICE) + "/moisture";
+const char* nodeMoisture = nodeMoistureString.c_str();
+
+void setup() {
+  Serial.begin(115200);
+  
+  setup_wifi();
+  client.setServer(mqtt_server, 1883);
+  client.setCallback(callback);
+
+  pinMode(PIN_PUMP, OUTPUT);
+  pinMode(PIN_SOIL, INPUT);
+  AHT.begin();
+}
+
+void setup_wifi() {
+  delay(10);
+  Serial.println();
+  Serial.print("Connecting to ");
+  Serial.println(ssid);
+  WiFi.begin(ssid, password);
+
+  while (WiFi.status() != WL_CONNECTED) {
+    delay(500);
+    Serial.print(".");
+  }
+
+  Serial.println("");
+  Serial.println("WiFi connected");
+  Serial.println("IP address: ");
+  Serial.println(WiFi.localIP());
+}
+
+void callback(char* topic, byte* message, unsigned int length) {
+  
+  Serial.print("Message arrived on topic: ");
+  Serial.print(topic);
+  Serial.print(". Message: ");
+  String messageTemp;
+
+  for (int i = 0; i < length; i++) {
+    Serial.print((char)message[i]);
+    messageTemp += (char)message[i];
+  }
+
+  if (String(topic) == nodeOutput) {
+    Serial.print("Changing output to ");
+    if(messageTemp == "on"){
+      Serial.println("on");
+      digitalWrite(PIN_PUMP, HIGH);
+    }
+    else if(messageTemp == "off"){
+      Serial.println("off");
+      digitalWrite(PIN_PUMP, LOW);
+    }
+  }
+}
+
+void reconnect() {
+  while (!client.connected()) {
+    Serial.print("Attempting MQTT connection...");
+
+    if (client.connect("ESP8266Client")) {
+      Serial.println("connected");
+      client.subscribe(nodeOutput);
+    } else {
+      Serial.print("failed, rc=");
+      Serial.print(client.state());
+      Serial.println(" try again in 5 seconds");      
+      delay(5000);
+    }
+  }
+}
+
+void loop() {
+  if (!client.connected()) {
+    reconnect();
+  }
+
+  client.loop();
+  long now = millis();
+
+  if (now - lastMsg > 1000) {
+    lastMsg = now;
+    
+    // Temperature and humidity
+    float humi, temp;
+    int ret = AHT.getSensor(&humi, &temp);
+    humi = humi * 100;
+
+    char tempString[8];
+    dtostrf(temp, 1, 2, tempString);
+    Serial.println("Temperature: " + String(temp) + "°C");
+    client.publish(nodeTemperature, tempString);
+    
+    char humString[8];
+    dtostrf(humi, 1, 2, humString);
+    Serial.println("Air humidity: " + String(humi) + "%");
+    client.publish(nodeHumidity, humString);
+
+    // Soil moisture
+    rawADC = analogRead(PIN_SOIL);
+    int moistPct = map(rawADC, 2500, 2000, 0, 100);
+    if (moistPct > 100) {
+      moistPct = 100;
+    } else if (moistPct < 0) {
+      moistPct = 0;
+    }
+    Serial.println("Soil moisture: " + String(moistPct) + "%");
+    moistureReadingCounter++;
+    moistureAvr = moistureAvr + moistPct;
+
+    char moistPctString[8];
+    dtostrf(moistPct, 1, 2, moistPctString);
+    client.publish(nodeMoisture, moistPctString);
+
+    Serial.println("Counter: " + String(moistureReadingCounter) + "s");
+    Serial.println("");
+
+    // take moisture reading for 2 minutes and calculate average
+    if (moistureReadingCounter > 120 ) {
+      moistPct = (int) (moistureAvr / moistureReadingCounter);
+      Serial.println("Soil moisture average: " + String(moistPct) + "%");
+      Serial.println("");
+      if (moistPct < moistureThreshold ) {
+        digitalWrite(PIN_PUMP, HIGH);
+        delay(5000);
+        digitalWrite(PIN_PUMP, LOW);
+      }
+      moistureReadingCounter = 0;
+      moistureAvr = 0;
+    }
+
+  }
+}
+```
+
+![](medias/IMG_9975.jpg)
 
 ### Node-red
 
@@ -675,178 +863,4 @@ An instance of Node-red allows us to connect our devices to a dashboard. The eas
 ]
 ```
 
-### Arduino
-
-Arduino allows us to program our board so that it acts as desired. Create a new arduino project and paste the following code into it. It will most likely be necessary to install the few libraries used.
-
-```C++
-#include <WiFi.h>
-#include <PubSubClient.h>
-#include <Wire.h>
-#include <AHT20.h>
-
-#define DEVICE 1
-
-const char* ssid = "*****";
-const char* password = "*****";
-const char* mqtt_server = "*****";
-
-WiFiClient espClient;
-PubSubClient client(espClient);
-long lastMsg = 0;
-char msg[50];
-int value = 0;
-
-AHT20 AHT;
-#define PIN_SOIL D1
-#define PIN_PUMP D2
-
-int rawADC;
-int moistureThreshold = 50;
-long moistureAvr = 0;
-long moistureReadingCounter = 0;
-long lastNotification = 0;
-
-// node-red commands
-String nodeOutputSting = "esp32-" + String(DEVICE) + "/output";
-const char* nodeOutput = nodeOutputSting.c_str();
-String nodeTemperatureString = "esp32-" + String(DEVICE) + "/temperature";
-const char* nodeTemperature = nodeTemperatureString.c_str();
-String nodeHumidityString = "esp32-" + String(DEVICE) + "/humidity";
-const char* nodeHumidity = nodeHumidityString.c_str();
-String nodeMoistureString = "esp32-" + String(DEVICE) + "/moisture";
-const char* nodeMoisture = nodeMoistureString.c_str();
-
-void setup() {
-  Serial.begin(115200);
-  
-  setup_wifi();
-  client.setServer(mqtt_server, 1883);
-  client.setCallback(callback);
-
-  pinMode(PIN_PUMP, OUTPUT);
-  pinMode(PIN_SOIL, INPUT);
-  AHT.begin();
-}
-
-void setup_wifi() {
-  delay(10);
-  Serial.println();
-  Serial.print("Connecting to ");
-  Serial.println(ssid);
-  WiFi.begin(ssid, password);
-
-  while (WiFi.status() != WL_CONNECTED) {
-    delay(500);
-    Serial.print(".");
-  }
-
-  Serial.println("");
-  Serial.println("WiFi connected");
-  Serial.println("IP address: ");
-  Serial.println(WiFi.localIP());
-}
-
-void callback(char* topic, byte* message, unsigned int length) {
-  
-  Serial.print("Message arrived on topic: ");
-  Serial.print(topic);
-  Serial.print(". Message: ");
-  String messageTemp;
-
-  for (int i = 0; i < length; i++) {
-    Serial.print((char)message[i]);
-    messageTemp += (char)message[i];
-  }
-
-  if (String(topic) == nodeOutput) {
-    Serial.print("Changing output to ");
-    if(messageTemp == "on"){
-      Serial.println("on");
-      digitalWrite(PIN_PUMP, HIGH);
-    }
-    else if(messageTemp == "off"){
-      Serial.println("off");
-      digitalWrite(PIN_PUMP, LOW);
-    }
-  }
-}
-
-void reconnect() {
-  while (!client.connected()) {
-    Serial.print("Attempting MQTT connection...");
-
-    if (client.connect("ESP8266Client")) {
-      Serial.println("connected");
-      client.subscribe(nodeOutput);
-    } else {
-      Serial.print("failed, rc=");
-      Serial.print(client.state());
-      Serial.println(" try again in 5 seconds");      
-      delay(5000);
-    }
-  }
-}
-
-void loop() {
-  if (!client.connected()) {
-    reconnect();
-  }
-
-  client.loop();
-  long now = millis();
-
-  if (now - lastMsg > 1000) {
-    lastMsg = now;
-    
-    // Temperature and humidity
-    float humi, temp;
-    int ret = AHT.getSensor(&humi, &temp);
-    humi = humi * 100;
-
-    char tempString[8];
-    dtostrf(temp, 1, 2, tempString);
-    Serial.println("Temperature: " + String(temp) + "°C");
-    client.publish(nodeTemperature, tempString);
-    
-    char humString[8];
-    dtostrf(humi, 1, 2, humString);
-    Serial.println("Air humidity: " + String(humi) + "%");
-    client.publish(nodeHumidity, humString);
-
-    // Soil moisture
-    rawADC = analogRead(PIN_SOIL);
-    int moistPct = map(rawADC, 2500, 2000, 0, 100);
-    if (moistPct > 100) {
-      moistPct = 100;
-    } else if (moistPct < 0) {
-      moistPct = 0;
-    }
-    Serial.println("Soil moisture: " + String(moistPct) + "%");
-    moistureReadingCounter++;
-    moistureAvr = moistureAvr + moistPct;
-
-    char moistPctString[8];
-    dtostrf(moistPct, 1, 2, moistPctString);
-    client.publish(nodeMoisture, moistPctString);
-
-    Serial.println("Counter: " + String(moistureReadingCounter) + "s");
-    Serial.println("");
-
-    // take moisture reading for 2 minutes and calculate average
-    if (moistureReadingCounter > 120 ) {
-      moistPct = (int) (moistureAvr / moistureReadingCounter);
-      Serial.println("Soil moisture average: " + String(moistPct) + "%");
-      Serial.println("");
-      if (moistPct < moistureThreshold ) {
-        digitalWrite(PIN_PUMP, HIGH);
-        delay(5000);
-        digitalWrite(PIN_PUMP, LOW);
-      }
-      moistureReadingCounter = 0;
-      moistureAvr = 0;
-    }
-
-  }
-}
-```
+![](medias/IMG_9967.jpg)

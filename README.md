@@ -13,9 +13,10 @@ A smart device connected to a plant, which measures the soil moisture level, the
 - Grove Shield for Seeed Studio XIAO
 - Watering Unit with Mositure Sensor and Pump
 - AHT20 Temperature and Humidity Sensor
-- 3D-printed enclosure
+- [3D-printed cap](iot-gardening-station-cap.stl)
 
 ![](medias/IMG_9924.jpg)
+![](medias/screenshot-3d.png)
 
 ### Assembly instructions
 
@@ -25,7 +26,7 @@ A smart device connected to a plant, which measures the soil moisture level, the
 4. Connect the sensor to the board with a Grove cable to pin 4 and 5
 4. Connect the water unit to the board with a Grove cable to pin 1 and 2
 5. Tape the sensor to the base of the watering unit using double-sided tape
-6. 3D print the case and place it on the unit to cover everything
+6. 3D print the cap and place it on the unit to cover everything
 
 ![](medias/IMG_9941.jpg)
 ![](medias/IMG_9946.jpg)

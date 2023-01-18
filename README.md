@@ -215,6 +215,8 @@ void loop() {
 
 An instance of Node-red allows us to connect our devices to a dashboard. The easiest way is to have Node-red installed on a Raspberry Pi. Or on another computer that can stay on. Import the following code into the Node-red dashboard to configure the dashboard and its connections as desired.
 
+![](screenshot-nodered.png)
+
 ```json
 [
     {

@@ -38,14 +38,14 @@ A smart device connected to a plant, which measures the soil moisture level, the
 Arduino allows us to program our board so that it acts as desired. Create a new arduino project and paste the code from [iot-gardening-station-arduino.ino](iot-gardening-station-arduino.ino) into it. It will most likely be necessary to install the few libraries used.
 
 ![](medias/screenshot-arduino.png)
-![](medias/IMG_9975.jpg)
+
 
 ### Node-red
 
 An instance of Node-red allows us to connect our devices to a dashboard. The easiest way is to have Node-red installed on a Raspberry Pi. Or on another computer that can stay on. Import the code from [iot-gardening-station-node-red.json](iot-gardening-station-node-red.json) into the Node-red dashboard to configure the dashboard and its connections as desired.
 
 ![](medias/screenshot-nodered.png)
-![](medias/IMG_9967.jpg)
+![](medias/IMG_9975.jpg)
 
 ## Links and references
 
@@ -66,3 +66,5 @@ An instance of Node-red allows us to connect our devices to a dashboard. The eas
 ## License
 
 The code is under the [MIT LICENSE](LICENSE), the assets are [BY-NC-SA 4.0](LICENSE.by-nc-sa-4.0.md).
+
+![](medias/IMG_9967.jpg)

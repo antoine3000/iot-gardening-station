@@ -1,13 +1,15 @@
+#include "env.h"
 #include <WiFi.h>
 #include <PubSubClient.h>
 #include <Wire.h>
 #include <AHT20.h>
 
-#define DEVICE 1
+#define DEVICE 2
 
-const char* ssid = "*****";
-const char* password = "*****";
-const char* mqtt_server = "*****";
+const char* ssid = env_ssid;
+const char* password = env_password;
+const char* mqtt_server = env_mqtt_server;
+const char* mqtt_topic = env_mqtt_topic;
 
 WiFiClient espClient;
 PubSubClient client(espClient);
@@ -26,13 +28,13 @@ long moistureReadingCounter = 0;
 long lastNotification = 0;
 
 // node-red commands
-String nodeOutputSting = "esp32-" + String(DEVICE) + "/output";
+String nodeOutputSting = mqtt_topic + String(DEVICE) + "/output";
 const char* nodeOutput = nodeOutputSting.c_str();
-String nodeTemperatureString = "esp32-" + String(DEVICE) + "/temperature";
+String nodeTemperatureString = mqtt_topic + String(DEVICE) + "/temperature";
 const char* nodeTemperature = nodeTemperatureString.c_str();
-String nodeHumidityString = "esp32-" + String(DEVICE) + "/humidity";
+String nodeHumidityString = mqtt_topic + String(DEVICE) + "/humidity";
 const char* nodeHumidity = nodeHumidityString.c_str();
-String nodeMoistureString = "esp32-" + String(DEVICE) + "/moisture";
+String nodeMoistureString = mqtt_topic + String(DEVICE) + "/moisture";
 const char* nodeMoisture = nodeMoistureString.c_str();
 
 void setup() {
@@ -113,7 +115,7 @@ void loop() {
 
   client.loop();
   long now = millis();
-
+  
   if (now - lastMsg > 1000) {
     lastMsg = now;
     

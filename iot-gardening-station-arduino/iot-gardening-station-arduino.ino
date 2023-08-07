@@ -4,7 +4,7 @@
 #include <Wire.h>
 #include <AHT20.h>
 
-#define DEVICE 2
+#define DEVICE 1
 
 const char* ssid = env_ssid;
 const char* password = env_password;

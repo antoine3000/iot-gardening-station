@@ -48,6 +48,9 @@ An instance of Node-red allows us to connect our devices to a dashboard. The eas
 ![](medias/screenshot-nodered.png)
 ![](medias/IMG_9975.jpg)
 
+Nodes: [http://127.0.0.1:1880/](http://127.0.0.1:1880/)
+Interface: [http://127.0.0.1:1880/ui](http://127.0.0.1:1880/ui)
+
 ## Links and references
 
 - [Getting Started with Seeed Studio XIAO ESP32C3](https://wiki.seeedstudio.com/XIAO_ESP32C3_Getting_Started/)

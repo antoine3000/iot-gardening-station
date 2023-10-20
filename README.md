@@ -40,6 +40,14 @@ Arduino allows us to program our board so that it acts as desired. Create a new 
 
 ![](medias/screenshot-arduino.png)
 
+#### Install librairies
+
+- WiFi.h
+- PubSubClient.h
+- Wire.h
+- AHT20.h
+
+![](medias/LibraryManager.png)
 
 ### Node-red
 
